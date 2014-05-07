@@ -9,12 +9,13 @@ from unidecode import unidecode
 
 # =========================================================================
 #                  TODO
-# 1. Parse the schedule_url to get the room/hour pairs
-# 2. Put them in a database where you can query quickly (sqlite maybe)
-# 3. When the page is visited, get date/time info and check the
-#    rooms at the floor -2.
-# 4. After this, make another screen for printing the occupation for
-#    all rooms in the building (ETA)
+# =========================================================================
+# [X] Parse the schedule_url to get the room/hour pairs
+# [ ] Put them in a database where you can query quickly (sqlite maybe)
+# [ ] When the page is visited, get date/time info and check the
+#     rooms at the floor -2.
+# [ ] After this, make another screen for printing the occupation for
+#     all rooms in the building (ETA)
 # =========================================================================
 
 
@@ -23,6 +24,8 @@ spring_period = (2, 6)
 summer_period = (7, 8)
 fall_period = (9, 1)
 
+day_map = {'M' :  1, 'T' :  2, 'W' :  3, 'Th' :  4,  'F' :  5,
+            1  : 'M', 2  : 'T', 3  : 'W', 4   : 'Th', 5  : 'F'}
 
 def find_semester(month=date.today().month, year=date.today().year):
     if month >= fall_period[0] or month <= fall_period[1]:
@@ -116,15 +119,15 @@ def extract_lectures(day, hour, room):
 
     # discard lectures with no day/hour/room info
     if hours is None:
-        print '***** day : |%s|, hour : |%s|, room : |%s| *****' % (day, hour, room)
-        print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (days, hours, rooms)
+        # print '***** day : |%s|, hour : |%s|, room : |%s| *****' % (day, hour, room)
+        # print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (days, hours, rooms)
         return
     elif not (len(days) == len(hours) == len(rooms)):
         if len(rooms) > 0 and all(rooms[0] == item for item in rooms):
             rooms = [rooms[0]] * len(days)
         else:
-            print '***** day : |%s|, hour : |%s|, room : |%s| *****' % (day, hour, room)
-            print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (days, hours, rooms)
+            # print '***** day : |%s|, hour : |%s|, room : |%s| *****' % (day, hour, room)
+            # print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (days, hours, rooms)
             return
 
     return zip(days, hours, rooms)
@@ -136,12 +139,12 @@ def get_courses(schedule_url=get_schedule_url()):
     # Second table contains the courses and first row of it is the header
     for index, c_row in enumerate(soup.select('table:nth-of-type(2) tr')[1:]):
         c_col = c_row.select('td')
-        course_id    = unidecode(c_col[0].get_text(strip=True))  # .encode('utf8')
-        course_name  = unidecode(c_col[2].get_text(strip=True))  # .encode('utf8')
-        course_instr = unidecode(c_col[5].get_text(strip=True))  # .encode('utf8')
-        course_days  = unidecode(c_col[6].get_text(strip=True))  # .encode('utf8')
-        course_hours = unidecode(c_col[7].get_text(strip=True))  # .encode('utf8')
-        course_rooms = unidecode(c_col[8].get_text(strip=True))  # .encode('utf8')
+        course_id    = unidecode(c_col[0].get_text(strip=True))
+        course_name  = unidecode(c_col[2].get_text(strip=True))
+        course_instr = unidecode(c_col[5].get_text(strip=True))
+        course_days  = unidecode(c_col[6].get_text(strip=True))
+        course_hours = unidecode(c_col[7].get_text(strip=True))
+        course_rooms = unidecode(c_col[8].get_text(strip=True))
 
         lecture = extract_lectures(course_days, course_hours, course_rooms)
         if lecture is not None:
