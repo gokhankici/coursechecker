@@ -5,6 +5,7 @@ from pyquery import PyQuery as pq
 from soupselect import select
 from datetime import date
 import re, sys
+from unidecode import unidecode
 
 # =========================================================================
 #                  TODO
@@ -106,17 +107,25 @@ def test_extract_lecture_hours():
 
 
 def extract_lectures(day, hour, room):
-    if day == '' or hour == '':
+    if day == '' or day == 'TBA' or hour == '':
         return
 
     days = re.findall('[A-Z][^A-Z]*', day)
     hours = extract_lecture_hours(hour, len(days))
-    rooms = re.findall('[A-Za-z]+\s?[A-Za-z\d]*', room)
+    rooms = re.findall('[a-zA-Z\.]+\s?[a-zA-Z\d\.]*', room)
 
     # discard lectures with no day/hour/room info
-    if hours is None or not (len(days) == len(hours) == len(rooms)):
-        print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (day, hour, room)
+    if hours is None:
+        print '***** day : |%s|, hour : |%s|, room : |%s| *****' % (day, hour, room)
+        print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (days, hours, rooms)
         return
+    elif not (len(days) == len(hours) == len(rooms)):
+        if len(rooms) > 0 and all(rooms[0] == item for item in rooms):
+            rooms = [rooms[0]] * len(days)
+        else:
+            print '***** day : |%s|, hour : |%s|, room : |%s| *****' % (day, hour, room)
+            print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (days, hours, rooms)
+            return
 
     return zip(days, hours, rooms)
 
@@ -127,12 +136,12 @@ def get_courses(schedule_url=get_schedule_url()):
     # Second table contains the courses and first row of it is the header
     for index, c_row in enumerate(soup.select('table:nth-of-type(2) tr')[1:]):
         c_col = c_row.select('td')
-        course_id    = c_col[0].get_text(strip=True).encode('utf8')
-        course_name  = c_col[2].get_text(strip=True).encode('utf8')
-        course_instr = c_col[5].get_text(strip=True).encode('utf8')
-        course_days  = c_col[6].get_text(strip=True).encode('utf8')
-        course_hours = c_col[7].get_text(strip=True).encode('utf8')
-        course_rooms = c_col[8].get_text(strip=True).encode('utf8')
+        course_id    = unidecode(c_col[0].get_text(strip=True))  # .encode('utf8')
+        course_name  = unidecode(c_col[2].get_text(strip=True))  # .encode('utf8')
+        course_instr = unidecode(c_col[5].get_text(strip=True))  # .encode('utf8')
+        course_days  = unidecode(c_col[6].get_text(strip=True))  # .encode('utf8')
+        course_hours = unidecode(c_col[7].get_text(strip=True))  # .encode('utf8')
+        course_rooms = unidecode(c_col[8].get_text(strip=True))  # .encode('utf8')
 
         lecture = extract_lectures(course_days, course_hours, course_rooms)
         if lecture is not None:
