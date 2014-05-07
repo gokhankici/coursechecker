@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from pyquery import PyQuery as pq
 from soupselect import select
 from datetime import date
-import re
+import re, sys
 
 # =========================================================================
 #                  TODO
@@ -55,9 +55,7 @@ def extract_lecture_hours_helper(first, rest):
     if rest is not None return [first|rest]
     else return None
     """
-    if rest is None:
-        return None
-    else:
+    if rest is not None:
         return [first] + rest
 
 
@@ -70,7 +68,7 @@ def extract_lecture_hours(hours, lecture_count):
     if (hours == '') and (lecture_count == 0):
         return []
     elif (hours == '') ^ (lecture_count == 0):
-        return None
+        return
 
     if '2' <= hours[0] <= '9':  # 2,3,4,5,6,7,8,9
         return extract_lecture_hours_helper(
@@ -80,7 +78,7 @@ def extract_lecture_hours(hours, lecture_count):
         if len(hours) >= 2 and hours[1] == '0':  # 10
             return extract_lecture_hours_helper(
                 int(hours[0:2]),
-                extract_lecture_hours(hours[2:], lecture_count - 2))
+                extract_lecture_hours(hours[2:], lecture_count - 1))
         else:
             # first try 1
             result = extract_lecture_hours_helper(
@@ -92,9 +90,9 @@ def extract_lecture_hours(hours, lecture_count):
                 # then try 11, 12 or 13
                 return extract_lecture_hours_helper(
                     int(hours[0:2]),
-                    extract_lecture_hours(hours[2:], lecture_count - 2))
+                    extract_lecture_hours(hours[2:], lecture_count - 1))
     else:
-        return None  # cannot start with 0
+        return  # cannot start with 0
 
 
 def test_extract_lecture_hours():
@@ -103,13 +101,24 @@ def test_extract_lecture_hours():
 
     for i, o in zip(inputs, outputs):
         if extract_lecture_hours(*i) != o:
-            print(i, extract_lecture_hours(*i))
+            print('Error with input %s !\nexpected: %s, got: %s' % (i, o, extract_lecture_hours(*i)))
             break
 
 
 def extract_lectures(day, hour, room):
+    if day == '' or hour == '':
+        return
+
     days = re.findall('[A-Z][^A-Z]*', day)
-    # lecture_count = len(days)
+    hours = extract_lecture_hours(hour, len(days))
+    rooms = re.findall('[A-Za-z]+\s?[A-Za-z\d]*', room)
+
+    # discard lectures with no day/hour/room info
+    if hours is None or not (len(days) == len(hours) == len(rooms)):
+        print '***** days: |%s|, hours: |%s|, rooms: |%s| *****' % (day, hour, room)
+        return
+
+    return zip(days, hours, rooms)
 
 
 def get_courses(schedule_url=get_schedule_url()):
@@ -118,15 +127,23 @@ def get_courses(schedule_url=get_schedule_url()):
     # Second table contains the courses and first row of it is the header
     for index, c_row in enumerate(soup.select('table:nth-of-type(2) tr')[1:]):
         c_col = c_row.select('td')
-        course_id = c_col[0].get_text()
-        course_name = c_col[2].get_text()
-        course_instr = c_col[5].get_text()
-        course_days = c_col[6].get_text()
-        course_hours = c_col[7].get_text()
-        course_rooms = c_col[8].get_text()
+        course_id    = c_col[0].get_text(strip=True).encode('utf8')
+        course_name  = c_col[2].get_text(strip=True).encode('utf8')
+        course_instr = c_col[5].get_text(strip=True).encode('utf8')
+        course_days  = c_col[6].get_text(strip=True).encode('utf8')
+        course_hours = c_col[7].get_text(strip=True).encode('utf8')
+        course_rooms = c_col[8].get_text(strip=True).encode('utf8')
+
+        lecture = extract_lectures(course_days, course_hours, course_rooms)
+        if lecture is not None:
+            print(course_id, course_name, lecture)
+            courses.append(lecture)
+
     return courses
 
 
-# test_extract_lecture_hours()
-# departments = get_departments()
-# courses = get_courses()
+departments = get_departments()
+for dep_n, dep_c in departments.items():
+    url = get_schedule_url(dep_c)
+    print '\n##### %s #####\nurl: %s' % (dep_n, url)
+    get_courses(url)
