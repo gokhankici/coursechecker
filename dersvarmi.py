@@ -5,6 +5,7 @@ from pyquery import PyQuery as pq
 from soupselect import select
 import urllib
 from datetime import date
+import re
 
 # =========================================================================
 #                  TODO
@@ -22,18 +23,18 @@ spring_period = (2,6)
 summer_period = (7,8)
 fall_period   = (9,1)
 
-class Course(object):
-	"""Class to represent a course at BOUN"""
-	def __init__(self, course_id, name, instructor, days, hours, rooms):
-		self.course_id = course_id
-		self.name = name
-		self.instructor = instructor
-		self.days = days
-		self.hours = hours
-		self.rooms = rooms
+# class Course(object):
+# 	"""Class to represent a course at BOUN"""
+# 	def __init__(self, course_id, name, instructor, days, hours, rooms):
+# 		self.course_id = course_id
+# 		self.name = name
+# 		self.instructor = instructor
+# 		self.days = days
+# 		self.hours = hours
+# 		self.rooms = rooms
 
-	def joined_time():
-		return zip(days, hours, rooms)
+# 	def joined_time():
+# 		return zip(days, hours, rooms)
 
 def find_semester(month = date.today().month, year  = date.today().year):
 	if month >= fall_period[0] or month <= fall_period[1]:
@@ -59,6 +60,21 @@ def get_departments():
 		departments[department_name] = department_code
 	return departments
 
+
+def extract_lecture_hours(hours, lecture_count):
+	hours = re.findall('(10|11|12|[1-9])', hours)
+	if len(hours) = 
+
+	if len(hours) == lecture_count * 2:
+		return re.findall('\d{2}', hours)
+	else:
+		return None
+
+def extract_lectures(day, hour, room):
+	days = re.findall('[A-Z][^A-Z]*', days)
+	lecture_count = len(days)
+
+
 def get_courses(schedule_url = get_schedule_url()):
 	soup = BeautifulSoup(pq(url=schedule_url).html())
 	courses = []
@@ -66,16 +82,13 @@ def get_courses(schedule_url = get_schedule_url()):
 	for index, c_row in enumerate(soup.select('table:nth-of-type(2) tr')[1:]):
 		c_col = c_row.select('td')
 		course_id    = c_col[0].get_text()
-		print course_id
-		# course_name  = c_row.select('td nth-of-type(3)')
-		# course_instr = c_row.select('td nth-of-type(6)')
-		# course_days  = c_row.select('td nth-of-type(7)')
-		# course_hours = c_row.select('td nth-of-type(8)')
-		# course_rooms = c_row.select('td nth-of-type(9)')
-		# print course_id, course_name, course_instr, course_days, course_hours, course_rooms
-		# courses.append(Course(course_name, None, None, None, None))
+		course_name  = c_col[2].get_text()
+		course_instr = c_col[5].get_text()
+		course_days  = c_col[6].get_text()
+		course_hours = c_col[7].get_text()
+		course_rooms = c_col[8].get_text()
 	return courses
 
 
-departments = get_departments()
-courses = get_courses()
+# departments = get_departments()
+# courses = get_courses()
