@@ -4,8 +4,9 @@ from bs4 import BeautifulSoup
 from pyquery import PyQuery as pq
 from soupselect import select
 from datetime import date
-import re, sys
+import re, sys, os
 from unidecode import unidecode
+import sqlite3
 
 # =========================================================================
 #                  TODO
@@ -18,14 +19,13 @@ from unidecode import unidecode
 #     all rooms in the building (ETA)
 # =========================================================================
 
-
 # define the semester periods (in month)
 spring_period = (2, 6)
 summer_period = (7, 8)
 fall_period = (9, 1)
-
 day_map = {'M' :  1, 'T' :  2, 'W' :  3, 'Th' :  4,  'F' :  5,
             1  : 'M', 2  : 'T', 3  : 'W', 4   : 'Th', 5  : 'F'}
+
 
 def find_semester(month=date.today().month, year=date.today().year):
     if month >= fall_period[0] or month <= fall_period[1]:
@@ -133,29 +133,49 @@ def extract_lectures(day, hour, room):
     return zip(days, hours, rooms)
 
 
-def get_courses(schedule_url=get_schedule_url()):
+def get_courses(conn, schedule_url=get_schedule_url()):
     soup = BeautifulSoup(pq(url=schedule_url).html())
-    courses = []
+    c = conn.cursor()
+
     # Second table contains the courses and first row of it is the header
     for index, c_row in enumerate(soup.select('table:nth-of-type(2) tr')[1:]):
         c_col = c_row.select('td')
-        course_id    = unidecode(c_col[0].get_text(strip=True))
-        course_name  = unidecode(c_col[2].get_text(strip=True))
+        is_course_def = unidecode(c_col[0].get_text(strip=True)) != ''
+
+        if is_course_def: 
+            course_code  = unidecode(c_col[0].get_text(strip=True))
+            course_name  = unidecode(c_col[2].get_text(strip=True))
+            course_type  = 'LECTURE'
+        else:
+            course_type  = unidecode(c_col[2].get_text(strip=True))
+
         course_instr = unidecode(c_col[5].get_text(strip=True))
         course_days  = unidecode(c_col[6].get_text(strip=True))
         course_hours = unidecode(c_col[7].get_text(strip=True))
         course_rooms = unidecode(c_col[8].get_text(strip=True))
 
-        lecture = extract_lectures(course_days, course_hours, course_rooms)
-        if lecture is not None:
-            print(course_id, course_name, lecture)
-            courses.append(lecture)
+        lectures = extract_lectures(course_days, course_hours, course_rooms)
+        if 'course_code' in locals() and lectures is not None:
+            c.execute('INSERT INTO courses (code,name,type,instructor) VALUES (?,?,?,?)',
+                (course_code, course_name, course_type, course_instr))
+            course_table_id = c.lastrowid
+            for d,h,r in lectures:
+                c.execute('INSERT INTO lectures VALUES (?,?,?,?)', (course_table_id, d, h, r))
 
-    return courses
 
+def fill_db():
+    os.system('rm -f courses.db')
+    os.system('sqlite3 courses.db < tables.sql')
+    conn = sqlite3.connect('courses.db')
 
-departments = get_departments()
-for dep_n, dep_c in departments.items():
-    url = get_schedule_url(dep_c)
-    print '\n##### %s #####\nurl: %s' % (dep_n, url)
-    get_courses(url)
+    print 'CRAWLING REGISTRATION WEBSITE ...'
+    departments = get_departments()
+    dep_size = len(departments)
+    for index, dep_n in enumerate(departments):
+        url = get_schedule_url(departments[dep_n])
+        print '%-2d/%-2d : %60s' % (index + 1, dep_size, dep_n)
+        get_courses(conn, url)
+    
+    conn.commit()
+    conn.close()
+    print 'DONE !'
