@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<table class="table table-striped">
+	<thead>
+		<tr>
+			<th>Code</th>
+			<th>Name</th>
+			<th>Type</th>
+			<th>Instructor</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for course in courses %}
+		<tr>
+			<td>{{ course.code }}</td>
+			<td>{{ course.name }}</td>
+			<td>{{ course.type }}</td>
+			<td>{{ course.instructor }}</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+
+{% endblock %}

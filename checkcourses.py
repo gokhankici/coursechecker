@@ -36,8 +36,9 @@ app.config.update(dict(
 # ##############################################################################
 
 def connect_db():
+    print app.config['DATABASE']
     rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.row
+    rv.row_factory = sqlite3.Row
     return rv
 
 def get_db():
@@ -68,9 +69,9 @@ def init_db():
 @app.route('/')
 def show_entries():
     db = get_db()
-    cur = db.execute('SELECT title, text from entries order by id desc')
-    entries = cur.fetchall()
-    return render_template('show_entries.html', entries=entries)
+    cur = db.execute("SELECT DISTINCT code, name, type, instructor FROM courses WHERE code LIKE 'CMPE%' ORDER BY code ASC")
+    courses = cur.fetchall()
+    return render_template('show_courses.html', courses=courses)
 
 # ##############################################################################
 # ############### functions used for crawling the website ######################
