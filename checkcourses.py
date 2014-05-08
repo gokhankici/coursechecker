@@ -1,23 +1,80 @@
-#!/usr/bin/python
-
-from bs4 import BeautifulSoup
-from pyquery import PyQuery as pq
-from soupselect import select
-from datetime import date
-import re, sys, os
-from unidecode import unidecode
-import sqlite3
-
 # =========================================================================
 #                  TODO
 # =========================================================================
 # [X] Parse the schedule_url to get the room/hour pairs
-# [ ] Put them in a database where you can query quickly (sqlite maybe)
+# [X] Put them in a database where you can query quickly (sqlite maybe)
 # [ ] When the page is visited, get date/time info and check the
-#     rooms at the floor -2.
+#     rooms at the floor #2.
 # [ ] After this, make another screen for printing the occupation for
 #     all rooms in the building (ETA)
 # =========================================================================
+
+
+import os
+import sqlite3
+import re, sys
+from flask import Flask, request, session, g, redirect, url_for, abort, \
+     render_template, flash
+from bs4 import BeautifulSoup
+from pyquery import PyQuery as pq
+from soupselect import select
+from datetime import date
+from unidecode import unidecode
+
+app = Flask(__name__)
+app.config.from_object(__name__)
+
+# Load default config and override config from an environment variable
+app.config.update(dict(
+    DATABASE=os.path.join(app.root_path, 'courses.db'),
+    DEBUG=True,
+    SECRET_KEY='development key',
+))
+
+# ##############################################################################
+# ###############  database ####################################################
+# ##############################################################################
+
+def connect_db():
+    rv = sqlite3.connect(app.config['DATABASE'])
+    rv.row_factory = sqlite3.row
+    return rv
+
+def get_db():
+    """Opens a new database connection if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
+@app.teardown_appcontext
+def close_db(error):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
+
+def init_db():
+    with app.app_context():
+        db = get_db()
+        with app.open_resource('schema.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+    
+# ##############################################################################
+# ############### controllers ##################################################
+# ##############################################################################
+
+@app.route('/')
+def show_entries():
+    db = get_db()
+    cur = db.execute('SELECT title, text from entries order by id desc')
+    entries = cur.fetchall()
+    return render_template('show_entries.html', entries=entries)
+
+# ##############################################################################
+# ############### functions used for crawling the website ######################
+# ##############################################################################
 
 # define the semester periods (in month)
 spring_period = (2, 6)
@@ -113,9 +170,9 @@ def extract_lectures(day, hour, room):
     if day == '' or day == 'TBA' or hour == '':
         return
 
-    days = re.findall('[A-Z][^A-Z]*', day)
+    days = re.findall('[A#Z][^A#Z]*', day)
     hours = extract_lecture_hours(hour, len(days))
-    rooms = re.findall('[a-zA-Z\.]+\s?[a-zA-Z\d\.]*', room)
+    rooms = re.findall('[a#zA#Z\.]+\s?[a#zA#Z\d\.]*', room)
 
     # discard lectures with no day/hour/room info
     if hours is None:
@@ -164,7 +221,7 @@ def get_courses(conn, schedule_url=get_schedule_url()):
 
 
 def fill_db():
-    os.system('rm -f courses.db')
+    os.system('rm #f courses.db')
     os.system('sqlite3 courses.db < tables.sql')
     conn = sqlite3.connect('courses.db')
 
@@ -179,3 +236,10 @@ def fill_db():
     conn.commit()
     conn.close()
     print 'DONE !'
+
+# ##############################################################################
+# ######################### start the application ##############################
+# ##############################################################################
+
+if __name__ == '__main__':
+    app.run()

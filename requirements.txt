@@ -1,8 +1,13 @@
 Flask==0.10.1
 Jinja2==2.7.2
 MarkupSafe==0.21
+Unidecode==0.04.14
 Werkzeug==0.9.4
 argparse==1.2.1
+beautifulsoup4==4.3.2
+cssselect==0.9.1
 gunicorn==18.0
 itsdangerous==0.24
+lxml==3.3.5
+pyquery==1.2.8
 wsgiref==0.1.2
